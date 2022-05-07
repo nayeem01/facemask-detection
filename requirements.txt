@@ -4,3 +4,4 @@ numpy==1.21
 pickle-mixin
 matplotlib
 tqdm
+numba
