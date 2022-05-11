@@ -16,16 +16,6 @@ config.gpu_options.allow_growth = True
 session = tf.compat.v1.Session(config=config)
 
 
-className = {0: "no mask", 1: "masked"}
-
-
-json_file = open('models/mask_model.json', 'r')
-loaded_model_json = json_file.read()
-json_file.close()
-mask_model = model_from_json(loaded_model_json)
-mask_model.load_weights("models/CNN_64X3.h5")
-
-
 def rescaleFrame(frame, scale=0.75):
     width = int(frame.shape[1] * scale)
     height = int(frame.shape[0] * scale)
@@ -52,52 +42,65 @@ def process_input(img):
 #     print(className[maxindex])
 
 
-# detected_mask()
-font = cv.FONT_HERSHEY_SIMPLEX
-capture = cv.VideoCapture('test/test2.mp4')
-# for web cam
-# capture = cv.VideoCapture(0)
+def main():
+    while True:
+        _, frame = capture.read()
 
-while True:
-    isTrue, frame = capture.read()
+        face_detector = cv.CascadeClassifier(
+            'models/haarcascade_frontalface_default.xml')
 
-    face_detector = cv.CascadeClassifier(
-        'models/haarcascade_frontalface_default.xml')
+        frame = rescaleFrame(frame, 0.3)
 
-    frame = rescaleFrame(frame, 0.3)
+        gray_face = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
 
-    gray_face = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+        faces = face_detector.detectMultiScale(
+            gray_face, scaleFactor=1.09, minNeighbors=7,  minSize=(30, 30), flags=cv.CASCADE_SCALE_IMAGE)
 
-    faces = face_detector.detectMultiScale(
-        gray_face, scaleFactor=1.09, minNeighbors=7,  minSize=(30, 30), flags=cv.CASCADE_SCALE_IMAGE)
+        # print(faces)
 
-    # print(faces)
+        for (x, y, w, h) in faces:
+            cv.rectangle(frame, (x, y-50), (x+w, y+h+10), (0, 255, 0), 4)
+            rec_frame = gray_face[y:y + h, x:x + w]
+            cropped_img = process_input(rec_frame)
 
-    for (x, y, w, h) in faces:
-        cv.rectangle(frame, (x, y-50), (x+w, y+h+10), (0, 255, 0), 4)
-        rec_frame = gray_face[y:y + h, x:x + w]
-        cropped_img = process_input(rec_frame)
+            prediction = mask_model.predict([cropped_img])
+            maxindex = round(prediction[0][0])
 
-        prediction = mask_model.predict([cropped_img])
-        maxindex = round(prediction[0][0])
+            str_classname = "{} {}".format(
+                className[maxindex], "{:.2f}".format(prediction[0][0], 2))
+            str_facecount = "face count : {}".format(len(faces))
 
-        str_classname = "{} {}".format(
-            className[maxindex], "{:.2f}".format(prediction[0][0], 2))
-        str_facecount = "face count : {}".format(len(faces))
+            cv.putText(frame, str_classname, (x+5, y-20),
+                       cv.FONT_HERSHEY_SIMPLEX, 1, (15, 15, 253) if maxindex == 0 else (0, 255, 0), 2, cv.LINE_AA)
 
-        cv.putText(frame, str_classname, (x+5, y-20),
-                   cv.FONT_HERSHEY_SIMPLEX, 1, (15, 15, 253) if maxindex == 0 else (0, 255, 0), 2, cv.LINE_AA)
+            cv.putText(frame, str_facecount,
+                       (40, 40),  font, 1, (255, 0, 0), 2, cv.LINE_AA)
+            #frame_resized = rescaleFrame(frame, scale=.2)
 
-        cv.putText(frame, str_facecount,
-                   (40, 40),  font, 1, (255, 0, 0), 2, cv.LINE_AA)
-        #frame_resized = rescaleFrame(frame, scale=.2)
+            cv.imshow('Mask-detection', frame)
 
-        cv.imshow('Mask-detection', frame)
+        if cv.waitKey(1) & 0xFF == ord('d'):
+            break
+        elif 0xFF == ord('q'):
+            cv.waitKey(1000)
 
-    if cv.waitKey(1) & 0xFF == ord('d'):
-        break
-    elif 0xFF == ord('q'):
-        cv.waitKey(1000)
+    capture.release()
+    cv.destroyAllWindows()
 
-capture.release()
-cv.destroyAllWindows()
+
+if __name__ == "__main__":
+
+    className = {0: "no mask", 1: "masked"}
+
+    # Loading the model
+    json_file = open('models/mask_model.json', 'r')
+    loaded_model_json = json_file.read()
+    json_file.close()
+    mask_model = model_from_json(loaded_model_json)
+    mask_model.load_weights("models/CNN_64X3.h5")
+
+    font = cv.FONT_HERSHEY_SIMPLEX
+    capture = cv.VideoCapture('test/test2.mp4')
+    # for web cam
+    # capture = cv.VideoCapture(0)
+    main()
