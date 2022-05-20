@@ -5,7 +5,7 @@
 -   Project Architecture  
     ![Project Architecture ](/assets/faceMask-Architecture.jpg "Project Architecture")
 -   Demo
-    ![Alt Text](/assets/demo.gif)
+    ![Alt Text](https://media.giphy.com/media/R7PL7YxyBEK2eXIibE/giphy.gif)
 
 -   how to run this project
     -   python3 -m venv env
